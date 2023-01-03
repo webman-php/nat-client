@@ -1,0 +1,13 @@
+{
+  "name": "webman/nat-client",
+  "type": "library",
+  "license": "MIT",
+  "description": "Webman plugin webman/nat-client",
+  "require": {
+  },
+  "autoload": {
+    "psr-4": {
+      "Webman\\NatClient\\": "src"
+    }
+  }
+}
