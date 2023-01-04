@@ -100,23 +100,18 @@ class Client
             $localConnection->send($data);
             $localConnection->pipe($serverConnection);
             $serverConnection->pipe($localConnection);
-            $serverConnection->onClose = function ($serverConnection) use ($localConnection) {
-                $localConnection->close();
-                if (!empty($serverConnection->timeoutTimer)) {
-                    Timer::del($serverConnection->timeoutTimer);
-                    $serverConnection->timeoutTimer = null;
-                }
-            };
             $localConnection->connect();
             $this->createConnectionToServer();
         };
-        $serverConnection->onClose = function ($serverConnection){
-            $serverConnection->reconnect(1);
+        $serverConnection->onClose = function ($serverConnection) {
+            Timer::add(random_int(1, 9)/10, function () {
+                $this->createConnectionToServer();
+            }, null, false);
         };
         $serverConnection->timeoutTimer = Timer::add($this->timeout, function () use ($serverConnection){
             $serverConnection->timeoutTimer = null;
             $serverConnection->close();
-        });
+        }, null, false);
         $serverConnection->connect();
     }
 }
