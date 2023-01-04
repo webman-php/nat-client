@@ -16,11 +16,15 @@ return [
     'client' => [
         'handler' => Webman\NatClient\Client::class,
         'constructor' => [
-            'auth' => 'diw84hytq740qjrhqa810ufnau71',
-            'remote_ip' => '127.0.0.1',
-            'remote_port' => 8181,
-            'local_ip' => '127.0.0.1',
-            'local_port' => 8787,
+            'config' => [
+                'auth' => 'diw84hytq740qjrhqa810ufnau71', // 鉴权，需要与nat-server的一致
+                'remote_ip' => '127.0.0.1', // 这里填写运行nat-server的服务端ip
+                'remote_port' => 8181,      // 这里填写运行nat-server的端口
+                'local_ip' => '127.0.0.1',
+                'local_port' => 8787,
+                'timeout' => 50,
+                'connection_count' => 10,
+            ]
         ]
     ]
 ];

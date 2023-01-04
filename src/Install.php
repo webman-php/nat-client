@@ -1,5 +1,5 @@
 <?php
-namespace Webman\NatServer;
+namespace Webman\NatClient;
 
 class Install
 {
@@ -9,7 +9,7 @@ class Install
      * @var array
      */
     protected static $pathRelation = array (
-  'config/plugin/webman/nat-server' => 'config/plugin/webman/nat-server',
+  'config/plugin/webman/nat-client' => 'config/plugin/webman/nat-client',
 );
 
     /**

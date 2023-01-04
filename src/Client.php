@@ -15,11 +15,7 @@
 namespace Webman\NatClient;
 
 use Workerman\Connection\AsyncTcpConnection;
-use Workerman\Connection\TcpConnection;
-use Workerman\Protocols\Http\Request;
-use Workerman\Protocols\Http\Response;
-use Workerman\Worker;
-
+use Workerman\Timer;
 /**
  * 内网穿透客户端
  */
@@ -30,6 +26,11 @@ class Client
      * @var string
      */
     protected $auth;
+
+    /**
+     * @var int
+     */
+    protected $timeout;
 
     /**
      * @var string
@@ -52,20 +53,23 @@ class Client
     protected $localPort;
 
     /**
-     * Construct
-     * @param string $auth
-     * @param string $remote_ip
-     * @param int $remote_port
-     * @param string $local_ip
-     * @param int $local_port
+     * @var int
      */
-    public function __construct(string $auth, string $remote_ip, int $remote_port, string $local_ip, int $local_port)
+    protected $connectionCount;
+
+    /**
+     * Construct
+     * @param array $config
+     */
+    public function __construct(array $config)
     {
-        $this->auth = $auth;
-        $this->remoteIp = $remote_ip;
-        $this->remotePort = $remote_port;
-        $this->localIp = $local_ip;
-        $this->localPort = $local_port;
+        $this->auth = $config['auth'];
+        $this->remoteIp = $config['remote_ip'];
+        $this->remotePort = $config['remote_port'];
+        $this->localIp = $config['local_ip'];
+        $this->localPort = $config['local_port'];
+        $this->timeout = $config['timeout'];
+        $this->connectionCount = $config['connection_count'];
     }
 
     /**
@@ -74,27 +78,45 @@ class Client
      */
     public function onWorkerStart()
     {
-        for ($i = 0; $i < 10; $i++) {
-            $this->connectServer();
+        for ($i = 0; $i < $this->connectionCount; $i++) {
+            Timer::add(1, function (){
+                $this->createConnectionToServer();
+            }, null, false);
         }
     }
 
     /**
-     * connectServer
+     * createConnectionToServer
      * @return void
      */
-    public function connectServer()
+    public function createConnectionToServer()
     {
         $serverConnection = new AsyncTcpConnection("tcp://{$this->remoteIp}:{$this->remotePort}");
-        $serverConnection->send("OPTIONS / HTTP/1.1\r\nauth:{$this->auth}\r\n\r\n");
+        $serverConnection->onConnect = function ($serverConnection) {
+            $serverConnection->send("OPTIONS / HTTP/1.1\r\nauth:{$this->auth}\r\n\r\n");
+        };
         $serverConnection->onMessage = function ($serverConnection, $data) {
             $localConnection = new AsyncTcpConnection("tcp://{$this->localIp}:{$this->localPort}");
             $localConnection->send($data);
             $localConnection->pipe($serverConnection);
             $serverConnection->pipe($localConnection);
-            $serverConnection->onClose = [$this, 'connectServer'];
+            $serverConnection->onClose = function ($serverConnection) use ($localConnection) {
+                $localConnection->close();
+                if (!empty($serverConnection->timeoutTimer)) {
+                    Timer::del($serverConnection->timeoutTimer);
+                    $serverConnection->timeoutTimer = null;
+                }
+            };
             $localConnection->connect();
+            $this->createConnectionToServer();
         };
+        $serverConnection->onClose = function ($serverConnection){
+            $serverConnection->reconnect(1);
+        };
+        $serverConnection->timeoutTimer = Timer::add($this->timeout, function () use ($serverConnection){
+            $serverConnection->timeoutTimer = null;
+            $serverConnection->close();
+        });
         $serverConnection->connect();
     }
 }
