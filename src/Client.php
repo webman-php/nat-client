@@ -104,6 +104,10 @@ class Client
             $this->createConnectionToServer();
         };
         $serverConnection->onClose = function ($serverConnection) {
+            if (!empty($serverConnection->timeoutTimer)) {
+                Timer::del($serverConnection->timeoutTimer);
+                $serverConnection->timeoutTimer = null;
+            }
             Timer::add(random_int(1, 9)/10, function () {
                 $this->createConnectionToServer();
             }, null, false);
