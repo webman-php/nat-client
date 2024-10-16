@@ -180,7 +180,13 @@ class Client
             $localPort = $this->apps[$domain]['local_port'];
             // 创建本地的连接并与浏览器连接互推数据
             $localConnection = new AsyncTcpConnection("tcp://$localIp:$localPort");
-            $localConnection->send($data);
+            // nil 为不推送数据，只用作触发连接操作
+            if (substr($data, 0, 5) === '<nil>') {
+                $data = substr($data, 5);
+            }
+            if ($data !== '') {
+                $localConnection->send($data);
+            }
             $localConnection->pipe($serverConnection);
             $serverConnection->pipe($localConnection);
             $localConnection->connect();
